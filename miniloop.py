@@ -5,7 +5,7 @@ import time
 from fluidsynth import new_fluid_settings, new_fluid_synth, \
     fluid_synth_sfload, fluid_synth_noteon, fluid_synth_noteoff, \
     new_fluid_audio_driver, fluid_synth_program_change, \
-    fluid_settings_setstr
+    fluid_settings_setstr, fluid_synth_pitch_bend
 
 import alsa_midi
 import vars
@@ -39,6 +39,9 @@ class Event:
         elif rawEvent.type == SSE.NOTEOFF:
             self.channel = rawEvent.data.note.channel
             self.note = rawEvent.data.note.note
+        elif rawEvent.type in (SSE.PITCHBEND, SSE.PGMCHANGE):
+            self.channel = rawEvent.data.control.channel
+            self.value = rawEvent.data.control.value
 
 class Sequencer(object):
 
@@ -103,7 +106,7 @@ for cinfo, pinfo in seq.iterPorts():
     print 'client %d: %s' % (clientId, ssci.get_name(cinfo))
     print '   %3d "%s"' % (portId, portName)
 
-    if portName == 'Q25 MIDI 1':
+    if portName == vars.keyboard:
         kbd = (clientId, portId)
 
 if not kbd:
@@ -121,9 +124,10 @@ if False:
 
 # Note: for some reason, this gives back an rc = -1 when run on the pi _after_
 # creating fluidsynth.
-os.system('stty -F /dev/ttyACM0 cs8 115200 ignbrk -brkint -icrnl -imaxbel '
-           '-opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoctl '
-           '-echoke noflsh -ixon -crtscts')
+if vars.arduino:
+    os.system('stty -F /dev/ttyACM0 cs8 115200 ignbrk -brkint -icrnl -imaxbel '
+              '-opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoctl '
+              '-echoke noflsh -ixon -crtscts')
 
 settings = new_fluid_settings()
 fluid_settings_setstr(settings, 'audio.driver', 'alsa');
@@ -146,6 +150,7 @@ class Looper:
         self.measure = 0
         self.recording = False
         self.inputChannel = 0
+        setDefaultPrograms()
 
     def start(self):
         self.startTime = time.time()
@@ -157,6 +162,10 @@ class Looper:
                                event.velocity)
         elif event.type == SSE.NOTEOFF:
             fluid_synth_noteoff(synth, event.channel, event.note)
+        elif event.type == SSE.PITCHBEND:
+            fluid_synth_pitch_bend(synth, event.channel, event.value + 8192)
+        elif event.type == SSE.PGMCHANGE:
+            fluid_synth_program_change(synth, event.channel, event.value)
 
     def checkEvents(self, time):
         events = []
@@ -164,7 +173,11 @@ class Looper:
             event = seq.getEvent(time = time)
             event.channel = self.inputChannel
             self.playEvent(event)
-            events.append(event)
+
+            # store everthing but program change events, we don't want to loop
+            # those.
+            if event.type != SSE.PGMCHANGE:
+                events.append(event)
         return events
 
     def mergeEvents(self, events):
@@ -227,23 +240,28 @@ class Looper:
         self.recording = False
 
 looper = Looper()
-pedal = open('/dev/ttyACM0', 'r', False)
-for channel, program in enumerate([
-    0, # grand piano
-    32,  # bass
-    48,  # strings
-    18,  # Rock Organ
-    3,   # Honky Tonk
-    80,  # synth
-    30,  # overdrive guitar
-    66,  # tenor sax
-    62   # brass
-    ]):
-    fluid_synth_program_change(synth, channel, program)
+if vars.arduino:
+    pedal = open('/dev/ttyACM0', 'r', False)
+
+def setDefaultPrograms():
+    for channel, program in enumerate([
+        0, # grand piano
+        32,  # bass
+        48,  # strings
+        18,  # Rock Organ
+        3,   # Honky Tonk
+        80,  # synth
+        30,  # overdrive guitar
+        66,  # tenor sax
+        62   # brass
+        ]):
+        fluid_synth_program_change(synth, channel, program)
+
+setDefaultPrograms()
 
 while True:
     looper.processOnce()
-    if select.select([pedal.fileno()], [], [], 0)[0]:
+    if vars.arduino and select.select([pedal.fileno()], [], [], 0)[0]:
         print 'reading from pedal'
         data = pedal.read(1)
         print '  done'
