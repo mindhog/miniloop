@@ -5,7 +5,7 @@ import time
 from fluidsynth import new_fluid_settings, new_fluid_synth, \
     fluid_synth_sfload, fluid_synth_noteon, fluid_synth_noteoff, \
     new_fluid_audio_driver, fluid_synth_program_change, \
-    fluid_settings_setstr, fluid_synth_pitch_bend
+    fluid_settings_setstr, fluid_synth_pitch_bend, fluid_synth_all_notes_off
 
 import alsa_midi
 import vars
@@ -42,6 +42,20 @@ class Event:
         elif rawEvent.type in (SSE.PITCHBEND, SSE.PGMCHANGE):
             self.channel = rawEvent.data.control.channel
             self.value = rawEvent.data.control.value
+
+def setDefaultPrograms():
+    for channel, program in enumerate([
+        0, # grand piano
+        32,  # bass
+        48,  # strings
+        18,  # Rock Organ
+        3,   # Honky Tonk
+        80,  # synth
+        30,  # overdrive guitar
+        66,  # tenor sax
+        62   # brass
+        ]):
+        fluid_synth_program_change(synth, channel, program)
 
 class Sequencer(object):
 
@@ -247,20 +261,6 @@ class Looper:
 looper = Looper()
 if vars.arduino:
     pedal = open('/dev/ttyACM0', 'r', False)
-
-def setDefaultPrograms():
-    for channel, program in enumerate([
-        0, # grand piano
-        32,  # bass
-        48,  # strings
-        18,  # Rock Organ
-        3,   # Honky Tonk
-        80,  # synth
-        30,  # overdrive guitar
-        66,  # tenor sax
-        62   # brass
-        ]):
-        fluid_synth_program_change(synth, channel, program)
 
 setDefaultPrograms()
 
