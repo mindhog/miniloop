@@ -131,8 +131,8 @@ synth = new_fluid_synth(settings)
 driver = new_fluid_audio_driver(settings, synth)
 fluid_synth_sfload(synth, '/usr/share/sounds/sf2/FluidR3_GM.sf2', True)
 
-os.system('jack_connect fluidsynth:l_00 system:playback_1')
-os.system('jack_connect fluidsynth:r_00 system:playback_2')
+#os.system('jack_connect fluidsynth:l_00 system:playback_1')
+#os.system('jack_connect fluidsynth:r_00 system:playback_2')
 
 class Looper:
 
@@ -191,11 +191,16 @@ class Looper:
         # t = time relative to start of record of this cycle.
         # absTime = time.time()
         absTime = time.time()
-        t = absTime - self.startTime
-        if self.measure and t > self.measure:
-            t = t % self.measure
-            self.startTime = absTime - t
-            self.cur = 0
+        if not self.seq:
+            # if there are no events, we want the first event to be at t=0
+            self.startTime = absTime
+            t = 0
+        else:
+            t = absTime - self.startTime
+            if self.measure and t > self.measure:
+                t = t % self.measure
+                self.startTime = absTime - t
+                self.cur = 0
 
         events = self.checkEvents(t)
         if self.recording and events:
@@ -261,6 +266,7 @@ while True:
 #    fluid_synth_noteon(synth, 0, 40, 120)
 #    time.sleep(0.25)
 #    fluid_synth_noteoff(synth, 0, 40)
+
 
 
 
