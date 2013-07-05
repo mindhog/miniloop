@@ -29,6 +29,7 @@ int fluid_synth_pitch_bend(fluid_synth_t *synth, int channel, int val);
 int fluid_synth_program_change(fluid_synth_t *synth, int channel,
                                int program
                                );
+int fluid_synth_cc(fluid_synth_t *synth, int channel, int control, int value);
 
 int fluid_synth_all_notes_off(fluid_synth_t *synth, int channel);
 int fluid_synth_all_sounds_off(fluid_synth_t *synth, int channel);

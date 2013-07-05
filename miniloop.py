@@ -5,7 +5,8 @@ import time
 from fluidsynth import new_fluid_settings, new_fluid_synth, \
     fluid_synth_sfload, fluid_synth_noteon, fluid_synth_noteoff, \
     new_fluid_audio_driver, fluid_synth_program_change, \
-    fluid_settings_setstr, fluid_synth_pitch_bend, fluid_synth_all_notes_off
+    fluid_settings_setstr, fluid_synth_pitch_bend, fluid_synth_all_notes_off, \
+    fluid_synth_cc
 
 import alsa_midi
 import vars
@@ -42,6 +43,14 @@ class Event:
         elif rawEvent.type in (SSE.PITCHBEND, SSE.PGMCHANGE):
             self.channel = rawEvent.data.control.channel
             self.value = rawEvent.data.control.value
+        elif rawEvent.type == SSE.CONTROLLER:
+            self.channel = rawEvent.data.control.channel
+            self.param = rawEvent.data.control.param
+            self.value = rawEvent.data.control.value
+
+    def isVolumeChange(self):
+        """Returns true if the event is a volume change."""
+        return self.type == SSE.CONTROLLER and self.param == 7
 
 def setDefaultPrograms():
     for channel, program in enumerate([
@@ -180,6 +189,8 @@ class Looper:
             fluid_synth_pitch_bend(synth, event.channel, event.value + 8192)
         elif event.type == SSE.PGMCHANGE:
             fluid_synth_program_change(synth, event.channel, event.value)
+        elif event.type == SSE.CONTROLLER:
+            fluid_synth_cc(synth, event.channel, event.param, event.value)
 
     def checkEvents(self, time):
         events = []
@@ -190,7 +201,7 @@ class Looper:
 
             # store everthing but program change events, we don't want to loop
             # those.
-            if event.type != SSE.PGMCHANGE:
+            if event.type != SSE.PGMCHANGE and not event.isVolumeChange():
                 events.append(event)
         return events
 
