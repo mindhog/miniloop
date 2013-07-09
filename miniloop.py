@@ -1,6 +1,8 @@
 
 import os
 import select
+import string
+import sys
 import time
 from fluidsynth import new_fluid_settings, new_fluid_synth, \
     fluid_synth_sfload, fluid_synth_noteon, fluid_synth_noteoff, \
@@ -272,29 +274,38 @@ class Looper:
 looper = Looper()
 if vars.arduino:
     pedal = open('/dev/ttyACM0', 'r', False)
+else:
+    # use stdin as a fake pedal
+    pedal = sys.stdin
+    recording = False
+    os.system('stty raw')
 
 setDefaultPrograms()
 
 while True:
     looper.processOnce()
-    if vars.arduino and select.select([pedal.fileno()], [], [], 0)[0]:
+    if select.select([pedal.fileno()], [], [], 0)[0]:
         print 'reading from pedal'
         data = pedal.read(1)
         print '  done'
-        val = ord(data)
-        looper.inputChannel = val & 0xF
-        if val & 0x80:
-            looper.endRecord()
-        else:
-            looper.startRecord()
+        if vars.arduino:
+            val = ord(data)
+            looper.inputChannel = val & 0xF
+            if val & 0x80:
+                looper.endRecord()
+            else:
+                looper.startRecord()
 
-
-
-
-#while True:
-#    fluid_synth_noteon(synth, 0, 40, 120)
-#    time.sleep(0.25)
-#    fluid_synth_noteoff(synth, 0, 40)
+        # remaining cases assume reading from stdin
+        elif data in string.digits:
+            looper.inputChannel = ord(data) - 48
+            if recording:
+                looper.endRecord()
+            else:
+                looper.startRecord()
+            recording = not recording
+        elif data == 'q':
+            sys.exit(0)
 
 
 
