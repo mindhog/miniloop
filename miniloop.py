@@ -64,9 +64,12 @@ def setDefaultPrograms():
         80,  # synth
         30,  # overdrive guitar
         66,  # tenor sax
-        62   # brass
         ]):
         fluid_synth_program_change(synth, channel, program)
+
+    # channel 8 is for effects.
+    fluid_synth_cc(synth, 8, 0, 32)
+    fluid_synth_program_change(synth, 8, 1)
 
 class Sequencer(object):
 
@@ -159,6 +162,7 @@ fluid_settings_setstr(settings, 'audio.driver', 'alsa');
 synth = new_fluid_synth(settings)
 driver = new_fluid_audio_driver(settings, synth)
 fluid_synth_sfload(synth, '/usr/share/sounds/sf2/FluidR3_GM.sf2', True)
+fluid_synth_sfload(synth, 'effects.sf2', True)
 
 #os.system('jack_connect fluidsynth:l_00 system:playback_1')
 #os.system('jack_connect fluidsynth:r_00 system:playback_2')
